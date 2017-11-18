@@ -7210,14 +7210,22 @@ var App = function (_React$Component) {
         _this.state = {
             canvasWidth: 800,
             canvasHeight: 600,
-            defaultElementSize: 100
+            defaultElementSize: 100,
+            selectedColor: "#000000"
         };
         return _this;
     }
 
     _createClass(App, [{
         key: 'componentDidMount',
-        value: function componentDidMount() {}
+        value: function componentDidMount() {
+            this.canvas.on('object:selected', function (option) {
+                var obj = option.target;
+                if (obj.hasOwnProperty('fill')) {
+                    this.setState({ selectedColor: obj.fill });
+                };
+            }.bind(this));
+        }
     }, {
         key: 'componentWillUnmount',
         value: function componentWillUnmount() {}
@@ -7227,7 +7235,7 @@ var App = function (_React$Component) {
             var rect = new fabric.Rect({
                 left: 100,
                 top: 100,
-                fill: 'black',
+                fill: '#000000',
                 width: this.state.defaultElementSize,
                 height: this.state.defaultElementSize
             });
@@ -7239,7 +7247,7 @@ var App = function (_React$Component) {
             var circle = new fabric.Circle({
                 left: 100,
                 top: 100,
-                fill: 'black',
+                fill: '#000000',
                 radius: this.state.defaultElementSize / 2
             });
             this.canvas.add(circle);
@@ -7284,6 +7292,25 @@ var App = function (_React$Component) {
             }
         }
     }, {
+        key: 'handleChangeColor',
+        value: function handleChangeColor(color) {
+            this.setState({ selectedColor: color });
+            if (this.canvas.getActiveGroup()) {
+                this.canvas.getActiveGroup().forEachObject(function (obj) {
+                    if (obj.hasOwnProperty('fill')) {
+                        obj.setColor(color);
+                    };
+                });
+                this.canvas.renderAll();
+            } else if (this.canvas.getActiveObject()) {
+                var obj = this.canvas.getActiveObject();
+                if (obj.hasOwnProperty('fill')) {
+                    obj.setColor(color);
+                };
+                this.canvas.renderAll();
+            };
+        }
+    }, {
         key: 'render',
         value: function render() {
             var _this4 = this;
@@ -7299,7 +7326,9 @@ var App = function (_React$Component) {
                 _react2.default.createElement(_ToolBar2.default, {
                     onAddRectangle: this.handleAddRectangle.bind(this),
                     onAddCircle: this.handleAddCircle.bind(this),
-                    onAddImage: this.handleAddImage.bind(this)
+                    onAddImage: this.handleAddImage.bind(this),
+                    onChangeColor: this.handleChangeColor.bind(this),
+                    selectedColor: this.state.selectedColor
                 }),
                 _react2.default.createElement(_Canv2.default, {
                     onDelete: this.handleDelete.bind(this),
@@ -7360,7 +7389,7 @@ exports = module.exports = __webpack_require__(17)(undefined);
 
 
 // module
-exports.push([module.i, ".canv {\n    border: 1px solid #000000;\n    width: 800px;\n    height: 600px;\n}\n.file-input {\n    opacity:0;\n}", ""]);
+exports.push([module.i, ".canv {\n    border: 1px solid #000000;\n    width: 800px;\n    height: 600px;\n}\n.file-input {\n    opacity:0;\n    display: none;\n}", ""]);
 
 // exports
 
@@ -53973,6 +54002,12 @@ var ToolBar = function (_React$Component) {
             reader.readAsDataURL(e.target.files[0]);
         }
     }, {
+        key: 'handleChangeColor',
+        value: function handleChangeColor(e) {
+            var color = e.target.value;
+            this.props.onChangeColor(color);
+        }
+    }, {
         key: 'render',
         value: function render() {
             return _react2.default.createElement(
@@ -53988,12 +54023,13 @@ var ToolBar = function (_React$Component) {
                     { onClick: this.props.onAddCircle },
                     'Circle'
                 ),
+                _react2.default.createElement('input', { onChange: this.handleChangeImage.bind(this), id: 'image-input', className: 'file-input', name: 'img', type: 'file', accept: 'image/*' }),
                 _react2.default.createElement(
                     'button',
                     { onClick: this.handleImageButton.bind(this) },
                     'Image'
                 ),
-                _react2.default.createElement('input', { onChange: this.handleChangeImage.bind(this), id: 'image-input', className: 'file-input', name: 'img', type: 'file', accept: 'image/*' })
+                _react2.default.createElement('input', { onChange: this.handleChangeColor.bind(this), id: 'color-palette', name: 'color', type: 'color', value: this.props.selectedColor })
             );
         }
     }]);
