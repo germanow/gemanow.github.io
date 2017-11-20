@@ -7225,6 +7225,7 @@ var App = function (_React$Component) {
                     this.setState({ selectedColor: obj.fill });
                 };
             }.bind(this));
+            document.addEventListener('keydown', this.handleKeyDown.bind(this));
         }
     }, {
         key: 'componentWillUnmount',
@@ -7239,7 +7240,7 @@ var App = function (_React$Component) {
                 width: this.state.defaultElementSize,
                 height: this.state.defaultElementSize
             });
-            this.canvas.add(rect);
+            this.canvas.add(rect).setActiveObject(rect);
         }
     }, {
         key: 'handleAddCircle',
@@ -7250,7 +7251,7 @@ var App = function (_React$Component) {
                 fill: '#000000',
                 radius: this.state.defaultElementSize / 2
             });
-            this.canvas.add(circle);
+            this.canvas.add(circle).setActiveObject(circle);
         }
     }, {
         key: 'handleAddImage',
@@ -7274,8 +7275,15 @@ var App = function (_React$Component) {
                     width: width,
                     height: height
                 });
-                _this2.canvas.add(imgInstance);
+                _this2.canvas.add(imgInstance).setActiveObject(imgInstance);
             }, 50);
+        }
+    }, {
+        key: 'handleKeyDown',
+        value: function handleKeyDown(e) {
+            if (e.keyCode == 46) {
+                this.handleDelete();
+            };
         }
     }, {
         key: 'handleDelete',
@@ -7289,7 +7297,7 @@ var App = function (_React$Component) {
                 this.canvas.discardActiveGroup().renderAll();
             } else {
                 this.canvas.remove(this.canvas.getActiveObject());
-            }
+            };
         }
     }, {
         key: 'handleChangeColor',
@@ -7311,6 +7319,17 @@ var App = function (_React$Component) {
             };
         }
     }, {
+        key: 'handleAddText',
+        value: function handleAddText() {
+            var textbox = new fabric.Textbox('Your text', {
+                left: 50,
+                top: 50,
+                width: 150,
+                fontSize: 20
+            });
+            this.canvas.add(textbox).setActiveObject(textbox);
+        }
+    }, {
         key: 'render',
         value: function render() {
             var _this4 = this;
@@ -7324,6 +7343,7 @@ var App = function (_React$Component) {
                     'Editor'
                 ),
                 _react2.default.createElement(_ToolBar2.default, {
+                    onAddText: this.handleAddText.bind(this),
                     onAddRectangle: this.handleAddRectangle.bind(this),
                     onAddCircle: this.handleAddCircle.bind(this),
                     onAddImage: this.handleAddImage.bind(this),
@@ -24707,7 +24727,7 @@ module.exports = camelize;
 /* WEBPACK VAR INJECTION */(function(Buffer, process) {/* build: `node build.js modules=ALL exclude=json,gestures minifier=uglifyjs` */
  /*! Fabric.js Copyright 2008-2015, Printio (Juriy Zaytsev, Maxim Chernyak) */
 
-var fabric = fabric || { version: "1.7.19" };
+var fabric = fabric || { version: "1.7.20" };
 if (true) {
   exports.fabric = fabric;
 }
@@ -32802,6 +32822,9 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
      * @param {fabric.Point} point Point to be added to points array
      */
     _addPoint: function(point) {
+      if (this._points.length > 1 && point.eq(this._points[this._points.length - 1])) {
+        return;
+      }
       this._points.push(point);
     },
 
@@ -32878,9 +32901,13 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
       var path = [], i, width = this.width / 1000,
           p1 = new fabric.Point(points[0].x, points[0].y),
           p2 = new fabric.Point(points[1].x, points[1].y),
-          len = points.length;
+          len = points.length, multSignX, multSignY, manyPoints = len > 2;
 
-      path.push('M ', p1.x - width, ' ', p1.y, ' ');
+      if (manyPoints) {
+        multSignX = points[2].x < p2.x ? -1 : points[2].x === p2.x ? 0 : 1;
+        multSignY = points[2].y < p2.y ? -1 : points[2].y === p2.y ? 0 : 1;
+      }
+      path.push('M ', p1.x - multSignX * width, ' ', p1.y - multSignY * width, ' ');
       for (i = 1; i < len; i++) {
         if (!p1.eq(p2)) {
           var midPoint = p1.midPointFrom(p2);
@@ -32894,7 +32921,11 @@ fabric.BaseBrush = fabric.util.createClass(/** @lends fabric.BaseBrush.prototype
           p2 = points[i + 1];
         }
       }
-      path.push('L ', p1.x + width, ' ', p1.y, ' ');
+      if (manyPoints) {
+        multSignX = p1.x > points[i - 2].x ? 1 : p1.x === points[i - 2].x ? 0 : -1;
+        multSignY = p1.y > points[i - 2].y ? 1 : p1.y === points[i - 2].y ? 0 : -1;
+      }
+      path.push('L ', p1.x + multSignX * width, ' ', p1.y + multSignY * width);
       return path;
     },
 
@@ -37344,6 +37375,8 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
      * Return the dimension and the zoom level needed to create a cache canvas
      * big enough to host the object to be cached.
      * @private
+     * @param {Object} dim.x width of object to be cached
+     * @param {Object} dim.y height of object to be cached
      * @return {Object}.width width of canvas
      * @return {Object}.height height of canvas
      * @return {Object}.zoomX zoomX zoom value to unscale the canvas before drawing cache
@@ -37352,8 +37385,8 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
     _getCacheCanvasDimensions: function() {
       var zoom = this.canvas && this.canvas.getZoom() || 1,
           objectScale = this.getObjectScaling(),
-          dim = this._getNonTransformedDimensions(),
           retina = this.canvas && this.canvas._isRetinaScaling() ? fabric.devicePixelRatio : 1,
+          dim = this._getNonTransformedDimensions(),
           zoomX = objectScale.scaleX * zoom * retina,
           zoomY = objectScale.scaleY * zoom * retina,
           width = dim.x * zoomX,
@@ -37362,7 +37395,9 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
         width: width + ALIASING_LIMIT,
         height: height + ALIASING_LIMIT,
         zoomX: zoomX,
-        zoomY: zoomY
+        zoomY: zoomY,
+        x: dim.x,
+        y: dim.y
       };
     },
 
@@ -37374,14 +37409,16 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
      */
     _updateCacheCanvas: function() {
       if (this.noScaleCache && this.canvas && this.canvas._currentTransform) {
-        var action = this.canvas._currentTransform.action;
-        if (action.slice && action.slice(0, 5) === 'scale') {
+        var target = this.canvas._currentTransform.target,
+            action = this.canvas._currentTransform.action;
+        if (this === target && action.slice && action.slice(0, 5) === 'scale') {
           return false;
         }
       }
-      var dims = this._limitCacheSize(this._getCacheCanvasDimensions()),
+      var canvas = this._cacheCanvas,
+          dims = this._limitCacheSize(this._getCacheCanvasDimensions()),
           minCacheSize = fabric.minCacheSideLimit,
-          width = dims.width, height = dims.height,
+          width = dims.width, height = dims.height, drawingWidth, drawingHeight,
           zoomX = dims.zoomX, zoomY = dims.zoomY,
           dimensionsChanged = width !== this.cacheWidth || height !== this.cacheHeight,
           zoomChanged = this.zoomX !== zoomX || this.zoomY !== zoomY,
@@ -37395,21 +37432,23 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
               canvasWidth > minCacheSize && canvasHeight > minCacheSize;
         shouldResizeCanvas = sizeGrowing || sizeShrinking;
         if (sizeGrowing) {
-          additionalWidth = (width * 0.1) & ~1;
-          additionalHeight = (height * 0.1) & ~1;
+          additionalWidth = width * 0.1;
+          additionalHeight = height * 0.1;
         }
       }
       if (shouldRedraw) {
         if (shouldResizeCanvas) {
-          this._cacheCanvas.width = Math.max(Math.ceil(width) + additionalWidth, minCacheSize);
-          this._cacheCanvas.height = Math.max(Math.ceil(height) + additionalHeight, minCacheSize);
-          this.cacheTranslationX = (width + additionalWidth) / 2;
-          this.cacheTranslationY = (height + additionalHeight) / 2;
+          canvas.width = Math.max(Math.ceil(width + additionalWidth), minCacheSize);
+          canvas.height = Math.max(Math.ceil(height + additionalHeight), minCacheSize);
         }
         else {
           this._cacheContext.setTransform(1, 0, 0, 1, 0, 0);
-          this._cacheContext.clearRect(0, 0, this._cacheCanvas.width, this._cacheCanvas.height);
+          this._cacheContext.clearRect(0, 0, canvas.width, canvas.height);
         }
+        drawingWidth = dims.x * zoomX / 2;
+        drawingHeight = dims.y * zoomY / 2;
+        this.cacheTranslationX = Math.round(canvas.width / 2 - drawingWidth) + drawingWidth;
+        this.cacheTranslationY = Math.round(canvas.height / 2 - drawingHeight) + drawingHeight;
         this.cacheWidth = width;
         this.cacheHeight = height;
         this._cacheContext.translate(this.cacheTranslationX, this.cacheTranslationY);
@@ -37565,7 +37604,8 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
      * @return {fabric.Object} thisArg
      */
     _set: function(key, value) {
-      var shouldConstrainValue = (key === 'scaleX' || key === 'scaleY');
+      var shouldConstrainValue = (key === 'scaleX' || key === 'scaleY'),
+          isChanged = this[key] !== value;
 
       if (shouldConstrainValue) {
         value = this._constrainScale(value);
@@ -37587,14 +37627,14 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
 
       this[key] = value;
 
-      if (this.cacheProperties.indexOf(key) > -1) {
+      if (isChanged && this.cacheProperties.indexOf(key) > -1) {
         if (this.group) {
           this.group.set('dirty', true);
         }
         this.dirty = true;
       }
 
-      if (this.group && this.stateProperties.indexOf(key) > -1) {
+      if (isChanged && this.group && this.stateProperties.indexOf(key) > -1) {
         this.group.set('dirty', true);
       }
 
@@ -37687,6 +37727,7 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
         this.drawCacheOnCanvas(ctx);
       }
       else {
+        this._removeCacheCanvas();
         this.dirty = false;
         this.drawObject(ctx, noTransform);
         if (noTransform && this.objectCaching && this.statefullCache) {
@@ -37698,7 +37739,16 @@ fabric.util.object.extend(fabric.StaticCanvas.prototype, /** @lends fabric.Stati
     },
 
     /**
-     * When returns `true`, force the object to have its own cache, even if it is inside a group
+     * Remove cacheCanvas and its dimensions from the objects
+     */
+    _removeCacheCanvas: function() {
+      this._cacheCanvas = null;
+      this.cacheWidth = 0;
+      this.cacheHeight = 0;
+    },
+
+    /**
+     * When set to `true`, force the object to have its own cache, even if it is inside a group
      * it may be needed when your object behave in a particular way on the cache and always needs
      * its own isolated canvas to render correctly.
      * This function is created to be subclassed by custom classes.
@@ -43142,6 +43192,7 @@ fabric.util.object.extend(fabric.Object.prototype, /** @lends fabric.Object.prot
         // do not change coordinate of objects enclosed in a group,
         // because objects coordinate system have been group coodinate system already.
         this._updateObjectsCoords(true);
+        this._updateObjectsACoords();
       }
       else {
         this._calcBounds();
@@ -43151,6 +43202,13 @@ fabric.util.object.extend(fabric.Object.prototype, /** @lends fabric.Object.prot
 
       this.setCoords();
       this.saveCoords();
+    },
+
+    _updateObjectsACoords: function() {
+      var ignoreZoom = true, skipAbsolute = true;
+      for (var i = this._objects.length; i--; ){
+        this._objects[i].setCoords(ignoreZoom, skipAbsolute);
+      }
     },
 
     /**
@@ -46960,6 +47018,7 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
       this._clearCache();
       this.width = this._getTextWidth(ctx) || this.cursorWidth || MIN_TEXT_WIDTH;
       this.height = this._getTextHeight(ctx);
+      this.setCoords();
     },
 
     /**
@@ -46975,17 +47034,19 @@ fabric.Image.filters.BaseFilter.fromObject = function(object, callback) {
      * Return the dimension and the zoom level needed to create a cache canvas
      * big enough to host the object to be cached.
      * @private
+     * @param {Object} dim.x width of object to be cached
+     * @param {Object} dim.y height of object to be cached
      * @return {Object}.width width of canvas
      * @return {Object}.height height of canvas
      * @return {Object}.zoomX zoomX zoom value to unscale the canvas before drawing cache
      * @return {Object}.zoomY zoomY zoom value to unscale the canvas before drawing cache
      */
     _getCacheCanvasDimensions: function() {
-      var dim = this.callSuper('_getCacheCanvasDimensions');
+      var dims = this.callSuper('_getCacheCanvasDimensions');
       var fontSize = this.fontSize;
-      dim.width += fontSize * dim.zoomX;
-      dim.height += fontSize * dim.zoomY;
-      return dim;
+      dims.width += fontSize * dims.zoomX;
+      dims.height += fontSize * dims.zoomY;
+      return dims;
     },
 
     /**
@@ -51035,6 +51096,7 @@ fabric.util.object.extend(fabric.IText.prototype, /** @lends fabric.IText.protot
       // clear cache and re-calculate height
       this._clearCache();
       this.height = this._getTextHeight(ctx);
+      this.setCoords();
     },
 
     /**
@@ -54015,6 +54077,11 @@ var ToolBar = function (_React$Component) {
                 { id: 'toolbar', className: 'btn-toolbar', role: 'toolbar' },
                 _react2.default.createElement(
                     'button',
+                    { onClick: this.props.onAddText },
+                    'Text'
+                ),
+                _react2.default.createElement(
+                    'button',
                     { onClick: this.props.onAddRectangle },
                     'Rectangle'
                 ),
@@ -54120,13 +54187,6 @@ var Canv = function (_React$Component) {
             this.props.getCanvas(canvas);
         }
     }, {
-        key: 'handleKeyDown',
-        value: function handleKeyDown(e) {
-            if (e.keyCode == 46) {
-                this.props.onDelete();
-            }
-        }
-    }, {
         key: 'componentWillUnmount',
         value: function componentWillUnmount() {}
     }, {
@@ -54134,7 +54194,7 @@ var Canv = function (_React$Component) {
         value: function render() {
             return _react2.default.createElement(
                 'div',
-                { className: 'canv', tabIndex: '1', onKeyDown: this.handleKeyDown.bind(this) },
+                { className: 'canv' },
                 _react2.default.createElement('canvas', {
                     id: 'canv'
                 }),
