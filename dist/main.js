@@ -40,7 +40,7 @@ function initialize() {
   
 function loadScript() {
     var script = document.createElement("script");
-    script.src = "https://maps.google.com/maps/api/js?sensor=false&callback=initialize";
+    script.src = "https://maps.googleapis.com/maps/api/js?key=AIzaSyBH7-l4Q49bKrM72WAmwUb7SjBu3HjevVk&callback=initMap";
     document.body.appendChild(script);
 }
 
