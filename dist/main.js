@@ -29,7 +29,7 @@ function initialize() {
                 paths: myPoints,
                 strokeColor: '#FFFF00', //цвет линии обводки
                 strokeOpacity: 0.8, // прозрачность линии обводки
-                strokeWeight: 3, //толщина линии обводки
+                strokeWeight: 2, //толщина линии обводки
                 fillColor: '#FF00FF', //этим цветом будет заполнен контур
                 fillOpacity: 0.2 //прозрачность заливки контура
             });
